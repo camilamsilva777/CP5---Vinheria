@@ -9,7 +9,7 @@
 ## 👥 Integrantes
 
 * **Camila de Mendonça da Silva** - RM: 565491
-* **Davi Alves dos Santos** - RM: 
+* **Davi Alves dos Santos** - RM: 566279
 *  **Rafael Joda** - RM: 561939
 * **Luis Miguel** RM: 561232
 * **Diego Zandonadi** RM: 561488
@@ -33,18 +33,10 @@
 vinheria-iot-poc-thingspeak/
 ├─ README.md                              # este documento
 ├─ docs/
-│  ├─ prints-postman/
-│  │  ├─ 01_update-get-200.png            # POST/GET /update → 200/202
-│  │  ├─ 02_update-post-200.png
-│  │  └─ 03_feeds-json.png                # GET /feeds.json com últimas leituras
 │  ├─ prints-wokwi/
 │  │  ├─ 01_wokwi-running.png             # simulação rodando
 │  │  └─ 02_serial-http-2xx.png           # Serial com HTTP 2xx
-│  └─ prints-thingspeak/
-│     ├─ 01_channel-fields.png            # fields 1..4 configurados
-│     └─ 02_charts-updating.png           # gráficos atualizando
 ├─ firmware/
-│  └─ esp32-wokwi-thingspeak/
 │     └─ main.cpp                         # código final do ESP32 (Wokwi)
 ├─ deploy/
 │  └─ scripts/
@@ -59,9 +51,9 @@ vinheria-iot-poc-thingspeak/
 
 | Sensor       | Variável no código | Field ThingSpeak |
 | ------------ | ------------------ | ---------------- |
-| Temperatura  | `t` (°C)           | `field1`         |
-| Umidade      | `h` (%)            | `field2`         |
-| Luminosidade | `luminosidade` (%) | `field3`         |
+| Temperatura  | `temperature` (°C)           | `field1`         |
+| Umidade      | `humidity` (%)            | `field2`         |
+| Luminosidade | `luminosity` (%) | `field3`         |
 | Distância    | `distance` (cm)    | `field4`         |
 
 ---
@@ -193,21 +185,21 @@ void loop() {
 
 * `docs/prints-wokwi/https200.png` 
 
-## Gráficos no ThingSpeak
+# Gráficos no ThingSpeak
 
-# → Temperature
+## → Temperature
 
 * `docs/prints-wokwi/temperature.png`
 
-# → Humidity
+## → Humidity
 
 * `docs/prints-wokwi/humidity.png`
 
-# → Luminosity
+## → Luminosity
 
 * `docs/prints-wokwi/luminosity.png`
 
-# → Distance
+## → Distance
 
 * `docs/prints-wokwi/distance.png`
  
