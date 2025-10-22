@@ -179,7 +179,8 @@ void loop() {
 ## 📸 Imagem das situações
 
 # → Hardware montado
-* `<img width="997" height="631" alt="printwokwi" src="https://github.com/user-attachments/assets/2c6751d5-7885-4f9e-9670-8b1add396fab" />` 
+* `` <img width="997" height="631" alt="printwokwi" src="https://github.com/user-attachments/assets/ec42b624-ada7-45a3-a90b-da6479247f54" />
+
 
 # → Serial Monitor mostrando êxito “HTTP status: 200”
 
