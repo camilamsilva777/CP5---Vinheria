@@ -184,11 +184,33 @@ void loop() {
 
 ---
 
-## 📸 Prints exigidos (onde gerar)
+## 📸 Imagem das situações
 
-* `docs/prints-wokwi/01_wokwi-running.png` → Wokwi em execução
-* `docs/prints-wokwi/02_serial-http-2xx.png` → Serial Monitor com “HTTP status: 200/202”
-* `docs/prints-thingspeak/01_channel-fields.png` → Channel com 4 fields criados
+# → Hardware montado
+* `docs/prints-wokwi/printwokwi.png` 
+
+# → Serial Monitor mostrando êxito “HTTP status: 200”
+
+* `docs/prints-wokwi/https200.png` 
+
+## Gráficos no ThingSpeak
+
+# → Temperature
+
+* `docs/prints-wokwi/temperature.png`
+
+# → Humidity
+
+* `docs/prints-wokwi/humidity.png`
+
+# → Luminosity
+
+* `docs/prints-wokwi/luminosity.png`
+
+# → Distance
+
+* `docs/prints-wokwi/distance.png`
+ 
 * `docs/prints-thingspeak/02_charts-updating.png` → Gráficos atualizando (Private/Public View)
 * `docs/prints-postman/01_update-get-200.png` → Postman chamando **GET /update** (200/202)
 * `docs/prints-postman/02_update-post-200.png` → Postman chamando **POST /update.json** (200)
