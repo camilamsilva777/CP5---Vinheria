@@ -185,21 +185,21 @@ void loop() {
 
 * `docs/prints-wokwi/https200.png` 
 
-## Gráficos no ThingSpeak
+# Gráficos no ThingSpeak
 
-# → Temperature
+## → Temperature
 
 * `docs/prints-wokwi/temperature.png`
 
-# → Humidity
+## → Humidity
 
 * `docs/prints-wokwi/humidity.png`
 
-# → Luminosity
+## → Luminosity
 
 * `docs/prints-wokwi/luminosity.png`
 
-# → Distance
+## → Distance
 
 * `docs/prints-wokwi/distance.png`
  
