@@ -179,7 +179,7 @@ void loop() {
 ## 📸 Imagem das situações
 
 # → Hardware montado
-* `docs/prints-wokwi/printwokwi.png` 
+* `C:\Users\CAMILA\OneDrive\Documentos\FIAP\EDGE\cp5\CP5---Vinheria\docs\prints-wokwi\printwokwi.png` 
 
 # → Serial Monitor mostrando êxito “HTTP status: 200”
 
