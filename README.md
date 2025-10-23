@@ -30,23 +30,13 @@
 ## 📁 Estrutura do Repositório
 
 ```
-vinheria-iot-poc-orion/
+CP5---Vinheria/
 ├─ README.md                              # este documento
 ├─ docs/
 │  ├─ prints-wokwi/
-│  │  ├─ 01_wokwi-running.png             # simulação rodando
-│  │  └─ 02_serial-mqtt-ok.png            # Serial OK com broker MQTT
-│  ├─ prints-postman/
-│  │  ├─ 01_entity-create.png             # (se aplicável) criação do device/entity
-│  │  ├─ 02_entity-get.png                # consulta no Orion
-│  │  └─ 03_entity-attrs-updated.png      # atributos atualizados
 ├─ firmware/
-│  └─ main.cpp                            # código final do ESP32 (Wokwi) - MQTT/Ultralight
-├─ deploy/
-│  └─ scripts/
-│     ├─ send-ultralight.sh               # publica MQTT (simulado) p/ testes
-│     └─ query-orion.sh                   # consulta entidade no Orion
-└─ .env.example                           # variáveis (BROKER, ORION, DEVICE_ID, TOPICS)
+│  └─ main.cpp                            # código final do ESP32 (Wokwi) - MQTT/Ultralight    
+└─                   
 ```
 
 ---
