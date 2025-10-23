@@ -279,12 +279,40 @@ void loop() {
 
 ---
 
-## 📸 Imagens & Evidências
+# 📸 Imagens
 
-* `docs/prints-wokwi/01_wokwi-running.png` → Simulação rodando
-* `docs/prints-wokwi/02_serial-mqtt-ok.png` → Conectado no broker MQTT
-* `docs/prints-postman/02_entity-get.png` → Consulta no Orion com atributos atualizados
-* `docs/prints-postman/03_entity-attrs-updated.png` → JSON NGSI v2 com `temperature`, `humidity`, `luminosity`, `distance`
+---
+
+## Hardware de Simulação Montado (Wokwi)
+<img width="490" height="316" alt="printwokwi" src="https://github.com/user-attachments/assets/5d051175-d753-4c6c-9864-23c8a65d842b" />
+
+---
+
+## HTTPS 200 confirmando êxito (Wokwi)
+<img width="216" height="51" alt="https200" src="https://github.com/user-attachments/assets/0be2d245-c40f-4ca1-91f5-ab651859acd9" />
+
+---
+
+# 📸 Evidências de funcionamento do Postman
+---
+
+<img width="1919" height="1079" alt="imagem_codigo" src="https://github.com/user-attachments/assets/3cd9d0e5-c03b-4ade-969d-d5cbb4841d5d" />
+
+---
+
+<img width="1919" height="1079" alt="imagem_codigo2" src="https://github.com/user-attachments/assets/469f77a7-8fe6-43b1-bf86-2c0fef906d7e" />
+
+---
+
+<img width="1918" height="1079" alt="imagem_codigo3" src="https://github.com/user-attachments/assets/031cf4e3-8854-4165-86b3-5bf293be0234" />
+
+---
+
+<img width="1919" height="1079" alt="imagem_codigo44" src="https://github.com/user-attachments/assets/f1027a36-f7b1-480a-995e-582237ed3d4d" />
+
+---
+
+<img width="1919" height="1079" alt="print1" src="https://github.com/user-attachments/assets/7970eec1-b7e3-4a88-b902-aeccae085b00" />
 
 ---
 
@@ -336,30 +364,6 @@ Content-Type: application/json
 4. **Run** no Wokwi e observar **Serial** (conexão Wi-Fi, MQTT e publicações).
 5. No **Postman**, usar `GET /v2/entities/<ENTITY_ID>` no Orion e validar atributos.
 6. (Opcional) Enviar **comando** via IoT Agent (ou publish MQTT) e observar o LED/PINO `default_D4`.
----
-
-## 🧰 Scripts (opcionais)
-
-**`deploy/scripts/query-orion.sh`**
-
-```bash
-#!/usr/bin/env bash
-ORION=${ORION:-http://localhost:1026}
-ENTITY_ID=${1:-lamp011}
-curl -s "${ORION}/v2/entities/${ENTITY_ID}" | jq .
-```
-
-**`deploy/scripts/send-ultralight.sh`** (exemplo didático – publicar direto no broker)
-
-```bash
-#!/usr/bin/env bash
-# Requer mosquitto-clients instalados
-BROKER=${BROKER:-172.24.240.1}
-mosquitto_pub -h $BROKER -t /TEF/lamp011/attrs/t -m "25.0"
-mosquitto_pub -h $BROKER -t /TEF/lamp011/attrs/h -m "60"
-mosquitto_pub -h $BROKER -t /TEF/lamp011/attrs/l -m "45"
-mosquitto_pub -h $BROKER -t /TEF/lamp011/attrs/u -m "12.3"
-```
 
 ---
 
