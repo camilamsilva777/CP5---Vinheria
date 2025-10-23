@@ -260,6 +260,9 @@ void loop() {
 
 ## 🔌 Pinagem (Wokwi)
 
+[**🔗 Link do projeto do Wokwi**](https://wokwi.com/projects/445526059985297409)
+
+
 * **DHT22:** VCC→3.3V, GND→GND, DATA→GPIO15
 * **LDR:** divisor com 10kΩ; nó central → **GPIO34**
 * **HC-SR04:** VCC→5V, GND→GND, **TRIG→GPIO5**, **ECHO→GPIO18**
