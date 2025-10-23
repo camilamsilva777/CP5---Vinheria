@@ -1,8 +1,8 @@
-# CP 5 - Vinheria IoT – PoC 
+# CP 5 - Vinheria IoT – PoC
+
 ## Engenharia de Software - 1ESPZ - FIAP
 
-> **Versão focada em ThingSpeak** (FIWARE/Orion indisponível no período da entrega).
-> Prova de conceito completa: **ESP32 (Wokwi) → ThingSpeak (Cloud)** com gráficos em tempo real, verificação via **Postman/cURL**, código reproduzível e estrutura organizada.
+> Prova de conceito completa: **ESP32 (Wokwi) → MQTT Broker → IoT Agent (Ultralight) → Orion Context Broker** com consulta e testes via **Postman/cURL**, código reproduzível e estrutura organizada.
 
 ---
 
@@ -10,310 +10,364 @@
 
 * **Camila de Mendonça da Silva** - RM: 565491
 * **Davi Alves dos Santos** - RM: 566279
-*  **Rafael Joda** - RM: 561939
-* **Luis Miguel** RM: 561232
-* **Diego Zandonadi** RM: 561488
+* **Rafael Joda** - RM: 561939
+* **Luis Miguel** - RM: 561232
+* **Diego Zandonadi** - RM: 561488
 
 ---
 
 ## 🗺️ Visão Geral da Arquitetura
 
-**Sensores (DHT22, LDR, HC-SR04) → ESP32 (Wokwi) → HTTP → ThingSpeak Channel (field1..field4) → Gráficos**
+**Sensores (DHT22, LDR, HC-SR04) → ESP32 (Wokwi) → MQTT → IoT Agent (Ultralight/MQTT) → Orion Context Broker → Postman**
 
-* O ESP32 envia leituras por **HTTP GET** (ou **POST**) para o endpoint `/update` do **ThingSpeak**.
-* Cada sensor é mapeado para um **Field** do canal (1 a 4).
-* Visualização em tempo real pela página do canal (Private/Public View).
-* Validação de integração feita com **Postman** e **cURL**.
+* O ESP32 publica leituras por **MQTT** nos tópicos `…/attrs/*`.
+* O **IoT Agent (Ultralight)** consome essas publicações e **atualiza atributos** da entidade no **Orion** (NGSI v2).
+* **Postman** é usado para **consultar/validar** a entidade no Orion (GET /v2/entities).
+* (Opcional) **Comandos** podem ser enviados do Orion → IoT Agent → ESP32 (o firmware já ouve `/cmd` e liga/desliga um pino).
 
 ---
 
 ## 📁 Estrutura do Repositório
 
 ```
-vinheria-iot-poc-thingspeak/
+vinheria-iot-poc-orion/
 ├─ README.md                              # este documento
 ├─ docs/
 │  ├─ prints-wokwi/
 │  │  ├─ 01_wokwi-running.png             # simulação rodando
-│  │  └─ 02_serial-http-2xx.png           # Serial com HTTP 2xx
+│  │  └─ 02_serial-mqtt-ok.png            # Serial OK com broker MQTT
+│  ├─ prints-postman/
+│  │  ├─ 01_entity-create.png             # (se aplicável) criação do device/entity
+│  │  ├─ 02_entity-get.png                # consulta no Orion
+│  │  └─ 03_entity-attrs-updated.png      # atributos atualizados
 ├─ firmware/
-│     └─ main.cpp                         # código final do ESP32 (Wokwi)
+│  └─ main.cpp                            # código final do ESP32 (Wokwi) - MQTT/Ultralight
 ├─ deploy/
 │  └─ scripts/
-│     ├─ send-sample.sh                   # exemplo de envio por shell (cURL)
-│     └─ healthcheck.sh                   # verificação básica do canal
-└─ .env.example                           # variáveis (API KEY, CHANNEL ID)
+│     ├─ send-ultralight.sh               # publica MQTT (simulado) p/ testes
+│     └─ query-orion.sh                   # consulta entidade no Orion
+└─ .env.example                           # variáveis (BROKER, ORION, DEVICE_ID, TOPICS)
 ```
 
 ---
 
-## 🧩 Mapeamento dos Campos (ThingSpeak)
+## 🧩 Mapeamento (Atributos → Orion via IoT Agent)
 
-| Sensor       | Variável no código | Field ThingSpeak |
-| ------------ | ------------------ | ---------------- |
-| Temperatura  | `temperature` (°C)           | `field1`         |
-| Umidade      | `humidity` (%)            | `field2`         |
-| Luminosidade | `luminosity` (%) | `field3`         |
-| Distância    | `distance` (cm)    | `field4`         |
+| Sensor       | Variável (código) | Tópico MQTT                      | Atributo no Orion | Unidade      |   |
+| ------------ | ----------------- | -------------------------------- | ----------------- | ------------ | - |
+| Temperatura  | `temperatura`     | `/TEF/lamp011/attrs/t`           | `temperature`     | °C           |   |
+| Umidade      | `umidade`         | `/TEF/lamp011/attrs/h`           | `humidity`        | %            |   |
+| Luminosidade | `luminosity`      | `/TEF/lamp011/attrs/l`           | `luminosity`      | %            |   |
+| Distância    | `distance`        | `/TEF/lamp011/attrs/u`           | `distance`        | cm           |   |
+| Estado LED   | (saída D4)        | `/TEF/lamp011/attrs` (payload `s | on/off`)          | `s` (status) | — |
+
+> **Comandos** recebidos no tópico `/TEF/lamp011/cmd` com payload contendo `@on|` ou `@off|` (o firmware já interpreta e alterna o pino `default_D4`).
+> O **IoT Agent** deve estar configurado para mapear `t,h,l,u,s` → atributos da entidade `lamp011` (ou `VINHERIA001`, conforme cadastro).
 
 ---
 
 ## 🔧 Pré-requisitos
 
-* Conta no **ThingSpeak** (MathWorks).
-* **Channel** criado com **4 fields** (Temperature, Humidity, Luminosity, Distance).
-* **Write API Key** do canal (ex.: `KGC2JE6OQJFPZ6SR`).
-* **Wokwi** (simulador online): [https://wokwi.com](https://wokwi.com) (projeto **ESP32**).
-* **Postman** (ou cURL) para validar endpoints e gerar prints.
+* **Broker MQTT** acessível (ex.: Mosquitto).
+* **FIWARE IoT Agent Ultralight (MQTT)** configurado e apontando para o **Orion**.
+* **Orion Context Broker** ativo (NGSI v2).
+* **Postman** (ou cURL) para validações.
+* **Wokwi** (ESP32) – rede padrão: `Wokwi-GUEST`.
+
+> **Endpoints de exemplo (ajuste para o seu ambiente)**
+>
+> * Broker MQTT: `172.24.240.1:1883`
+> * IoT Agent: `http://<iot-agent-host>:4041`
+> * Orion: `http://<orion-host>:1026`
 
 ---
 
-## 💻 Código Final (ESP32 — Wokwi → ThingSpeak)
+## 💻 Código Final (ESP32 → MQTT → Orion)
 
-> Cole em `firmware/esp32-wokwi-thingspeak/main.cpp` e no Wokwi (ESP32).
-> Ajuste **`apiKey`** antes de rodar.
+> Cole em `firmware/main.cpp`. Ajuste **BROKER**, **TOPICS** e **DEVICE** se necessário.
 
 ```cpp
 #include <WiFi.h>
-#include <HTTPClient.h>
+#include <PubSubClient.h>
 #include <DHT.h>
 
-// ---------- PINAGEM ----------
-#define DHTPIN   15        // DHT22 no GPIO15
-#define DHTTYPE  DHT22
-#define LDR_PIN  34        // LDR no ADC GPIO34
-#define TRIG_PIN 5         // HC-SR04 TRIG no GPIO5
-#define ECHO_PIN 18        // HC-SR04 ECHO no GPIO18
+const char* default_SSID = "Wokwi-GUEST";
+const char* default_PASSWORD = "";
+const char* default_BROKER_MQTT = "172.24.240.1";
+const int default_BROKER_PORT = 1883;
+const char* default_TOPICO_SUBSCRIBE = "/TEF/lamp011/cmd";
+const char* default_TOPICO_PUBLISH_1 = "/TEF/lamp011/attrs";
+const char* default_TOPICO_PUBLISH_2 = "/TEF/lamp011/attrs/l"; 
+const char* default_TOPICO_PUBLISH_3 = "/TEF/lamp011/attrs/t"; 
+const char* default_TOPICO_PUBLISH_4 = "/TEF/lamp011/attrs/h"; 
+const char* default_TOPICO_PUBLISH_5 = "/TEF/lamp011/attrs/u"; 
+const char* default_ID_MQTT = "fiware_001";
+const int default_D4 = 2;
+
+WiFiClient espClient;
+PubSubClient MQTT(espClient);
+char EstadoSaida = '0';
+
+const char* topicPrefix = "lamp011";
+
+#define DHTPIN 15
+#define DHTTYPE DHT22
+#define LDR_PIN 34
+#define TRIG_PIN 5
+#define ECHO_PIN 18
 
 DHT dht(DHTPIN, DHTTYPE);
 
-// ---------- REDE / THINGSPEAK ----------
-const char* ssid     = "Wokwi-GUEST";
-const char* password = "";
-const char* server   = "http://api.thingspeak.com";
-const char* apiKey   = "SUA_WRITE_API_KEY_AQUI"; // <-- ALTERE
-
-void setup() {
+void initSerial() {
   Serial.begin(115200);
-  dht.begin();
-
-  pinMode(LDR_PIN, INPUT);
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-
-  Serial.print("Conectando ao WiFi");
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-    delay(500);
-  }
-  Serial.println(" conectado!");
 }
 
-float readDistanceCm() {
+void initWiFi() {
+  delay(10);
+  Serial.println("------ Conectando ao Wi-Fi ------");
+  Serial.print("Rede: ");
+  Serial.println(default_SSID);
+  WiFi.begin(default_SSID, default_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(250);
+    Serial.print(".");
+  }
+  Serial.println("\nWi-Fi conectado!");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void initMQTT() {
+  MQTT.setServer(default_BROKER_MQTT, default_BROKER_PORT);
+  MQTT.setCallback(mqtt_callback);
+}
+
+void InitOutput() {
+  pinMode(default_D4, OUTPUT);
+  digitalWrite(default_D4, LOW);
+  for (int i = 0; i < 5; i++) {
+    digitalWrite(default_D4, !digitalRead(default_D4));
+    delay(200);
+  }
+}
+
+void reconnectMQTT() {
+  while (!MQTT.connected()) {
+    Serial.print("* Conectando ao broker MQTT: ");
+    Serial.println(default_BROKER_MQTT);
+    if (MQTT.connect(default_ID_MQTT)) {
+      Serial.println("Conectado ao broker MQTT!");
+      MQTT.subscribe(default_TOPICO_SUBSCRIBE);
+    } else {
+      Serial.println("Falha na conexão MQTT. Tentando novamente em 2s...");
+      delay(2000);
+    }
+  }
+}
+
+void mqtt_callback(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  for (int i = 0; i < length; i++) msg += (char)payload[i];
+  Serial.print("- Mensagem recebida: ");
+  Serial.println(msg);
+
+  if (msg.indexOf("@on|") >= 0) {
+    digitalWrite(default_D4, HIGH);
+    EstadoSaida = '1';
+  } else if (msg.indexOf("@off|") >= 0) {
+    digitalWrite(default_D4, LOW);
+    EstadoSaida = '0';
+  }
+}
+
+void readSensors() {
+  // --- DHT22 ---
+  float temperatura = dht.readTemperature();
+  float umidade = dht.readHumidity();
+
+  if (isnan(temperatura) || isnan(umidade)) {
+    Serial.println("Falha ao ler DHT22!");
+  } else {
+    Serial.print("Temperatura: ");
+    Serial.print(temperatura);
+    Serial.print(" °C | Umidade: ");
+    Serial.print(umidade);
+    Serial.println(" %");
+
+    String t_str = String(temperatura);
+    String h_str = String(umidade);
+    MQTT.publish(default_TOPICO_PUBLISH_3, t_str.c_str());
+    MQTT.publish(default_TOPICO_PUBLISH_4, h_str.c_str());
+  }
+
+  int ldrValue = analogRead(LDR_PIN);
+  int luminosity = map(ldrValue, 0, 4095, 0, 100);
+  Serial.print("Luminosidade: ");
+  Serial.print(luminosity);
+  Serial.println(" %");
+  MQTT.publish(default_TOPICO_PUBLISH_2, String(luminosity).c_str());
+
+  long duration;
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
   digitalWrite(TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
-  long duration = pulseIn(ECHO_PIN, HIGH, 30000); // timeout 30ms
-  if (duration == 0) return NAN;
-  return (duration * 0.0343f) / 2.0f; // cm
+  duration = pulseIn(ECHO_PIN, HIGH);
+  float distance = duration * 0.034 / 2;
+
+  Serial.print("Distância: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+  MQTT.publish(default_TOPICO_PUBLISH_5, String(distance).c_str());
+}
+
+void VerificaConexoesWiFIEMQTT() {
+  if (WiFi.status() != WL_CONNECTED) {
+    initWiFi();
+  }
+  if (!MQTT.connected()) {
+    reconnectMQTT();
+  }
+}
+
+void EnviaEstadoOutputMQTT() {
+  if (EstadoSaida == '1') {
+    MQTT.publish(default_TOPICO_PUBLISH_1, "s|on");
+  } else {
+    MQTT.publish(default_TOPICO_PUBLISH_1, "s|off");
+  }
+}
+
+void setup() {
+  initSerial();
+  InitOutput();
+  initWiFi();
+  initMQTT();
+  dht.begin();
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  delay(2000);
 }
 
 void loop() {
-  if (WiFi.status() == WL_CONNECTED) {
-    float h = dht.readHumidity();
-    float t = dht.readTemperature();
-    if (isnan(h) || isnan(t)) {
-      Serial.println("Falha ao ler o DHT22 (NaN).");
-      delay(2000);
-      return;
-    }
-
-    int ldrRaw = analogRead(LDR_PIN);                 // 0..4095
-    float luminosidade = (ldrRaw / 4095.0f) * 100.0f; // %
-
-    float distance = readDistanceCm();
-    float distanceToSend = isnan(distance) ? 0.0f : distance;
-
-    Serial.println("----- Leitura -----");
-    Serial.print("Temp (°C): ");  Serial.println(t, 1);
-    Serial.print("Umid  (%): ");  Serial.println(h, 0);
-    Serial.print("Lumi  (%): ");  Serial.println(luminosidade, 0);
-    Serial.print("Dist (cm): ");  Serial.println(distanceToSend, 1);
-
-    // Envio por GET (plano free)
-    HTTPClient http;
-    String url = String(server) + "/update?api_key=" + apiKey +
-                 "&field1=" + String(t, 1) +
-                 "&field2=" + String(h, 0) +
-                 "&field3=" + String(luminosidade, 0) +
-                 "&field4=" + String(distanceToSend, 1);
-
-    http.begin(url);
-    int code = http.GET();
-    Serial.print("HTTP status: "); Serial.println(code);
-    http.end();
-
-  } else {
-    Serial.println("WiFi desconectado. Reconectando...");
-    WiFi.reconnect();
-  }
-
-  // ThingSpeak (free): 15 s entre updates por chave
-  delay(15000);
+  VerificaConexoesWiFIEMQTT();
+  MQTT.loop();
+  EnviaEstadoOutputMQTT();
+  readSensors();
+  delay(3000); // leitura a cada 3s
 }
 ```
 
-### Pinagem (Wokwi)
+> **Destaques do firmware:**
+>
+> * Publica `t,h,l,u` em `/TEF/lamp011/attrs/*`.
+> * Publica estado `s|on/off` em `/TEF/lamp011/attrs`.
+> * Recebe comandos em `/TEF/lamp011/cmd` com `@on|` / `@off|`.
+> * Leitura DHT22 (T/UR), LDR (0–100%), HC-SR04 (cm).
+
+---
+
+## 🔌 Pinagem (Wokwi)
 
 * **DHT22:** VCC→3.3V, GND→GND, DATA→GPIO15
-* **LDR:** divisor com 10k; nó central → **GPIO34**
-* **HC-SR04:** VCC→5V, GND→GND, TRIG→GPIO5, ECHO→GPIO18
+* **LDR:** divisor com 10kΩ; nó central → **GPIO34**
+* **HC-SR04:** VCC→5V, GND→GND, **TRIG→GPIO5**, **ECHO→GPIO18**
+* **LED (default_D4):** GPIO2 (on-board)
 
-  * *(mundo real: divisor de tensão no ECHO para 3.3V; no Wokwi pode direto)*
-
----
-
-## 📸 Imagem das situações
-
-# → Hardware montado
-* `` <img width="997" height="631" alt="printwokwi" src="https://github.com/user-attachments/assets/ec42b624-ada7-45a3-a90b-da6479247f54" />
-
-
-# → Serial Monitor mostrando êxito “HTTP status: 200”
-
-* `docs/prints-wokwi/https200.png` 
-
-# Gráficos no ThingSpeak
-
-## → Temperature
-
-* `docs/prints-wokwi/temperature.png`
-
-## → Humidity
-
-* `docs/prints-wokwi/humidity.png`
-
-## → Luminosity
-
-* `docs/prints-wokwi/luminosity.png`
-
-## → Distance
-
-* `docs/prints-wokwi/distance.png`
- 
-* `docs/prints-thingspeak/02_charts-updating.png` → Gráficos atualizando (Private/Public View)
-* `docs/prints-postman/01_update-get-200.png` → Postman chamando **GET /update** (200/202)
-* `docs/prints-postman/02_update-post-200.png` → Postman chamando **POST /update.json** (200)
-* `docs/prints-postman/03_feeds-json.png` → Postman chamando **GET /channels/{id}/feeds.json**
+> 💡 No hardware real, **ECHO** precisa de **divisor de tensão** para 3.3 V.
 
 ---
 
-## 🧪 Validação com Postman (integração IoT)
+## 📸 Imagens & Evidências
 
-> Substitua `WRITE_API_KEY` e `CHANNEL_ID`.
+* `docs/prints-wokwi/01_wokwi-running.png` → Simulação rodando
+* `docs/prints-wokwi/02_serial-mqtt-ok.png` → Conectado no broker MQTT
+* `docs/prints-postman/02_entity-get.png` → Consulta no Orion com atributos atualizados
+* `docs/prints-postman/03_entity-attrs-updated.png` → JSON NGSI v2 com `temperature`, `humidity`, `luminosity`, `distance`
 
-**1) Enviar por GET (igual ao firmware)**
+---
+
+## 🧪 Validação com Postman (Orion)
+
+> **Pré-condição:** O **IoT Agent** já registrou o **device** e mapeamentos (service, servicepath, deviceId, atributos `t,h,l,u,s`).
+> Assim que o ESP32 publicar em MQTT, o IoT Agent **atualiza** a entidade no Orion.
+
+**1) Consultar entidade (NGSI v2)**
 
 ```
-GET https://api.thingspeak.com/update?api_key=WRITE_API_KEY&field1=25.3&field2=61&field3=45&field4=13.2
+GET http://<orion-host>:1026/v2/entities/<ENTITY_ID>
 ```
 
-**Esperado:** `200 OK` (ou `202 Accepted`) e corpo com o **Entry ID** inserido.
+**Resposta esperada (exemplo):**
 
-**2) Enviar por POST (JSON)**
-
-```
-POST https://api.thingspeak.com/update.json
-Headers:
-  Content-Type: application/json
-Body:
+```json
 {
-  "api_key": "WRITE_API_KEY",
-  "field1": 26.1,
-  "field2": 60,
-  "field3": 52,
-  "field4": 12.8
+  "id": "lamp011",
+  "type": "WineCellar",
+  "temperature": { "value": 24.5, "type": "Number" },
+  "humidity":    { "value": 62.1, "type": "Number" },
+  "luminosity":  { "value": 48,   "type": "Number" },
+  "distance":    { "value": 12.4, "type": "Number" },
+  "s":           { "value": "on", "type": "Text" }
 }
 ```
 
-**Esperado:** `200 OK` e Entry ID no corpo.
+**2) (Opcional) Enviar comando para o dispositivo**
 
-**3) Consultar últimas leituras (JSON)**
+> Forma recomendada quando o device está **cadastrado no IoT Agent** como *command*:
 
 ```
-GET https://api.thingspeak.com/channels/CHANNEL_ID/feeds.json?results=5
+POST http://<iot-agent-host>:4041/iot/devices/<DEVICE_ID>/commands
+Content-Type: application/json
+
+{ "on": "" }
 ```
 
-**Esperado:** `200 OK` com array `feeds` contendo seus `field1..field4`.
-
-> Gere prints no Postman de cada etapa e salve em `docs/prints-postman/`.
-
----
-
-## 🧪 Resultados da PoC
-
-* **Coleta e envio confiáveis** (a cada 15 s) de **temperatura, umidade, luminosidade e distância**.
-* **Gráficos em tempo real** no ThingSpeak (Private/Public View).
-* **Integração IoT validada** com Postman/cURL (`/update` e `/feeds.json`).
-* **Reprodutibilidade** confirmada por passos de configuração e código final.
+> **Alternativa para teste rápido (direto no MQTT):** publicar em `/TEF/lamp011/cmd` a string `@on|` ou `@off|` (o firmware já entende).
 
 ---
 
 ## 🔁 Replicabilidade (passo a passo)
 
-1. **Criar canal** no ThingSpeak com 4 fields.
-2. **Anotar** `WRITE_API_KEY` e `CHANNEL_ID`.
-3. **Clonar** este repositório:
-
-   ```bash
-   git clone <URL-DO-REPO>
-   cd vinheria-iot-poc-thingspeak
-   cp .env.example .env   # opcional
-   ```
-4. **Abrir Wokwi** → ESP32 → colar `firmware/esp32-wokwi-thingspeak/main.cpp`.
-5. **Editar** a constante `apiKey` no código.
-6. **Conectar sensores** conforme pinagem e clicar **Run**.
-7. **Conferir Serial**: “HTTP status: 200/202”.
-8. **Abrir canal** no ThingSpeak (Private View) e verificar gráficos.
-9. **Validar no Postman**: `/update` (GET/POST) e `/feeds.json`.
-10. **Capturar prints** e salvar nas pastas `docs/prints-*` conforme lista.
-
+1. **Confirmar ambiente**: Broker MQTT, IoT Agent Ultralight (MQTT) e Orion ativos.
+2. **Cadastrar device** no IoT Agent (mapeando `t,h,l,u,s` → Orion).
+3. **Abrir Wokwi**, carregar `firmware/main.cpp`, conferir **IP do broker** e **TOPICS**.
+4. **Run** no Wokwi e observar **Serial** (conexão Wi-Fi, MQTT e publicações).
+5. No **Postman**, usar `GET /v2/entities/<ENTITY_ID>` no Orion e validar atributos.
+6. (Opcional) Enviar **comando** via IoT Agent (ou publish MQTT) e observar o LED/PINO `default_D4`.
 ---
 
-## 🧰 Scripts de Deploy / Teste (opc.)
+## 🧰 Scripts (opcionais)
 
-> Coloque em `deploy/scripts/` (exemplos abaixo).
-> **Obs.:** São utilitários para teste/validação via shell (sem firmware).
-
-**`send-sample.sh`**
+**`deploy/scripts/query-orion.sh`**
 
 ```bash
 #!/usr/bin/env bash
-# Exemplo: ./send-sample.sh WRITE_API_KEY 27.5 63 40 14.1
-KEY="$1"; T="$2"; H="$3"; L="$4"; D="$5"
-curl -s "https://api.thingspeak.com/update?api_key=${KEY}&field1=${T}&field2=${H}&field3=${L}&field4=${D}"
-echo
+ORION=${ORION:-http://localhost:1026}
+ENTITY_ID=${1:-lamp011}
+curl -s "${ORION}/v2/entities/${ENTITY_ID}" | jq .
 ```
 
-**`healthcheck.sh`**
+**`deploy/scripts/send-ultralight.sh`** (exemplo didático – publicar direto no broker)
 
 ```bash
 #!/usr/bin/env bash
-# Exemplo: ./healthcheck.sh CHANNEL_ID
-CHAN="$1"
-curl -s "https://api.thingspeak.com/channels/${CHAN}/feeds.json?results=1" | jq .
+# Requer mosquitto-clients instalados
+BROKER=${BROKER:-172.24.240.1}
+mosquitto_pub -h $BROKER -t /TEF/lamp011/attrs/t -m "25.0"
+mosquitto_pub -h $BROKER -t /TEF/lamp011/attrs/h -m "60"
+mosquitto_pub -h $BROKER -t /TEF/lamp011/attrs/l -m "45"
+mosquitto_pub -h $BROKER -t /TEF/lamp011/attrs/u -m "12.3"
 ```
-
-> Dê permissão: `chmod +x deploy/scripts/*.sh`.
 
 ---
 
-## 📄 Observações
+## 🧪 Resultados da PoC
 
-* Esta versão cumpre os objetivos de **coleta → transmissão → visualização** em nuvem, incluindo **validação via Postman**.
-* Quando um **Context Broker FIWARE** estiver novamente disponível, basta trocar o **endpoint** e o **formato** (Ultralight). O restante do fluxo (coleta e logs) permanece igual.
+* **Coleta confiável** (a cada 3 s) de **temperatura, umidade, luminosidade e distância**.
+* **Publicação MQTT** e **ingestão via IoT Agent** com atualização no **Orion**.
+* **Validação Postman** via `GET /v2/entities/<id>` (NGSI v2).
+* **Comandos** do backend para o dispositivo (Orion/IoT Agent → MQTT → ESP32).
 
 ---
